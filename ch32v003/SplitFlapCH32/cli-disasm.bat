@@ -1,0 +1,1 @@
+%USERPROFILE%\AppData\Local\Arduino15\packages\WCH\tools\riscv-none-embed-gcc\8.2.0\bin\riscv-none-embed-objdump.exe -d -C -S build\SplitFlapCH32.ino.elf > disasm.txt

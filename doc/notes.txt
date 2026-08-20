@@ -1,0 +1,91 @@
+Encoder sensor
+~~~~~~~~~~~~~~
+QRE1113 module 8x14.2mm, height ~3mm
+
+Modifications for 5V operation
+
+LED resistor: 330 ohm
+collector resistor: 200K (maybe the default 100K is ok)
+
+
+Split-Flap Controller
+~~~~~~~~~~~~~~~~~~~~~
+Controller board V1772, 5V MCU CH32V003F4P6
+
+Schematic and notes: https://kyoichisato.github.io/ch32v003-getting-started-ja/V1772.html
+
+
+Motors
+~~~~~~
+MG90S 360 degree version
+
+
+Master MCU
+~~~~~~~~~~
+Arduino Nano 3 (5V)
+
+Ideally same V1772 if both UART and I2C can be enabled at the same time. Definitely possible with ch32v003fun version, Arduino has too much fat.
+
+
+Connections
+~~~~~~~~~~~
+
+Split-Flap module:
+
+QRE1113 OUT -> CH32 PC4
+MG90S PWM   -> CH32 PD3
+I2C SDA	    -> CH32 PC1         -> Arduino Nano A4         -> 4K7 pullup to +5V
+I2C SCL     -> CH32 PC2         -> Arduino Nano A5         -> 4K7 pullup to +5V
+
+
+
+I2C Communication
+~~~~~~~~~~~~~~~~~
+Each split-flap display has its own address assigned at build/flashing time. Leftmost is 0x10, second to right is 0x11, etc.
+
+
+EEPROM
+~~~~~~
+
+There are two important parameters that I'd like to be reconfigurable:
+
+  - zero mark offset, which is hard to get exactly the same for every flap wheel
+  - i2c address which must be unique for every position
+
+EEPROM Library for Arduino CH32 supports CH32V003, perhaps it can be a part of initial setup rather than flashing.
+
+
+I2C Commands
+~~~~~~~~~~~~
+
+A-Z 0-9 - space	  display character
+h                 home
+q                 respond with "SFD" [addr] [homing offset] [position] [state]
+z [n] [~n]        write new homing offset (modulo 38)
+a [addr] [~addr]  write new i2c addr, e.g.  0x61 0x11 0xee set addr = 0x11
+
+
+Master controller (usb serial)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Console commands: 
+
+" TEXT
+
+  "HELLO        type HELLO from current position
+  "\014SPLIT\r"	re-home all positions and display HELLO, then set cursor position to 0
+              
+a addr          assign address (only valid when there is a single display connected)
+  a 0x11	set display i2c address = 0x11
+
+z addr offset   set homing offset
+  z 0x11 -3     display at 0x11 homes to position -3
+
+Text special chars
+
+12 0xc 014	FF	re-home all positions
+10 0xa 012	LF      clear line (wind up to space without homing)
+13 0xd 015      CR      set position to 0
+8  0x8 010      BS      backspace
+[A-Z,0-9,\- ]           display char, advance cursor position
+
