@@ -59,4 +59,6 @@ Step file missing. See .3mf.
 
 ![Flaps](doc/drawing-Flaps.jpg)
 
-Step files missing. See .3mf.
+[splitfap.3mf](step/splitfap.3mf)
+
+[splitfap_with_barberpole.3mf](step/splitfap_with_barberpole.3mf)
