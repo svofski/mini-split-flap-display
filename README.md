@@ -33,7 +33,7 @@ One of the sides of the flaps drum has embedded codewheel. Zero position is mark
 
 ## Position sensing
 
-Tracking reflective codewheel is not as trivial as I expected, probably because it's far from perfect. Here's an example of what the readings look like:
+Tracking reflective codewheel is not as trivial as I expected, sensor readout is far from ideal. Here's an example of what the readings look like:
 ![sensor](doc/sensor-plot.jpg)
 
 The algorithm tracks min and max on raw data(green) independently (blue and red lines), then detects transitions over median line with added hysteresis.
