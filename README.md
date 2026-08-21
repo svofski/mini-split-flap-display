@@ -12,7 +12,7 @@ The compact and cheap requirement limits the choice of motors to MG90S, or even 
 ## Approximate BOM
 
  * black and white PLA are mandatory for optical sensor contrast
- * QRE1113 sensor module (1 per module, ￥1.89/pc) ![qre1113](doc/qre1113.jpg) (modules may require replacing a resistor!)
+ * QRE1113 sensor module (1 per module, ￥1.89/pc) ![qre1113](doc/qre1113.jpg) (modules may require changing LED resistor to 330 ohm!)
  * V1113 CH32V003F4P6 (1 per module, ￥2.86/pc) ![v1772](doc/V1772.jpg)
  * MG90S 360 degree servo (1 per module, ￥6.48/pc), SG90 360 degree can be used as well
 
