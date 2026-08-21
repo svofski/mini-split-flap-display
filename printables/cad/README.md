@@ -11,19 +11,25 @@ So far there are just different CAD files. All current models also exist as .ste
 Stator 
 
 ![StatorWithDovetail](doc/drawing-StatorWithDovetail.jpg)
+[stator_with_dovetail3.step](step/stator_with_dovetail3.step)
 
 Mounting rail
 
 ![Rail](doc/drawing-Rail.jpg)
 
+[rail.step](step/rail.step)
+
 Snappy bracket (Body in StatorPart)
 
 ![SnappyBracket](doc/drawing-SnappyBracket.jpg)
+
+[snappy-bracket.step](step/snappy-bracket.step)
 
 Pinion
 
 ![Pinion](doc/drawing-Pinion.jpg)
 
+Step file missing. Refer to .3mf.
 
 ## [wheel-exp6.FCStd](wheel-exp6.FCStd) 
 
@@ -31,14 +37,28 @@ Wheel + MarkersWhite
 
 ![Wheel+MarkersWhite](doc/drawing-Wheel-MarkersWhite.jpg)
 
+[wheel-axle-offset.step](step/wheel-axle-offset.step)
+
+[wheel-axle-markers-offset.step](step/wheel-axle-markers-offset.step)
+
 Wheel2 (gear side)
 
 ![Wheel2](doc/drawing-Wheel2.jpg)
+
+[wheel-gear.step](step/wheel-gear.step)
+
+[gear-support.step](step/gear-support.step)
 
 Assembly jig
 
 ![AssemblyJig](doc/drawing-AssemblyJig.jpg)
 
+Step file missing. See .3mf.
+
 ## [splitfap.scad](splitfap.scad) OpenSCAD model for the flaps
 
 ![Flaps](doc/drawing-Flaps.jpg)
+
+[splitfap.3mf](step/splitfap.3mf)
+
+[splitfap_with_barberpole.3mf](step/splitfap_with_barberpole.3mf)
