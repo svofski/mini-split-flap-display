@@ -34,13 +34,13 @@
 #endif
 
 enum state_t {
-  ST_IDLE = 0,
-  ST_HOMING1,  
-  ST_HOMING2,
-  ST_HOMING3,
-  ST_SEEK,
-  ST_PAUSE,
-  ST_PAUSE_RESTART
+    ST_IDLE = 0,
+    ST_HOMING1,  
+    ST_HOMING2,
+    ST_HOMING3,
+    ST_SEEK,
+    ST_PAUSE,
+    ST_PAUSE_RESTART
 };
 
 enum track_sensor_result_t { TS_IDLE, TS_PULSE, TS_MARKER };
@@ -88,37 +88,37 @@ void sendDiagnostics();
 
 static int8_t set_new_addr()
 {
-  uint8_t addr, naddr;
+    uint8_t addr, naddr;
 
-  if (Wire.available()) 
-    addr = Wire.read();
-  else
+    if (Wire.available()) 
+        addr = Wire.read();
+    else
+        return -1;
+    if (Wire.available())
+        naddr = Wire.read();
+    else
+        return -1;
+
+    if (addr == static_cast<uint8_t>(~naddr)) {
+        my_i2c_address = addr;
+        eeprom_save_settings();
+        Wire.end();
+        Wire.begin(my_i2c_address);
+        return 0;
+    }
+
     return -1;
-  if (Wire.available())
-    naddr = Wire.read();
-  else
-    return -1;
-
-  if (addr == static_cast<uint8_t>(~naddr)) {
-    my_i2c_address = addr;
-    eeprom_save_settings();
-    Wire.end();
-    Wire.begin(my_i2c_address);
-    return 0;
-  }
-
-  return -1;
 }
 
 static int8_t set_new_adjust()
 {
-  if (Wire.available()) {
-    my_homing_adjust = static_cast<int8_t>(Wire.read());
-    eeprom_save_settings();
-    return 0;
-  }
+    if (Wire.available()) {
+        my_homing_adjust = static_cast<int8_t>(Wire.read());
+        eeprom_save_settings();
+        return 0;
+    }
 
-  return -1;
+    return -1;
 }
 
 static void onReceive(int num_bytes)
@@ -127,16 +127,16 @@ static void onReceive(int num_bytes)
     while(Wire.available()) {
         i2c_command = (uint8_t)Wire.read();
         switch (i2c_command) {
-          case 'q':
-            i2c_acknowledge = 1;
-            while (Wire.available()) Wire.read();
-            return;
-          case 'a': // set addr: new addr, new addr inverted
-            set_new_addr();
-            break;
-          case 'z': // set homing adjust
-            set_new_adjust();
-            break;
+            case 'q':
+                i2c_acknowledge = 1;
+                while (Wire.available()) Wire.read();
+                return;
+            case 'a': // set addr: new addr, new addr inverted
+                set_new_addr();
+                break;
+            case 'z': // set homing adjust
+                set_new_adjust();
+                break;
         }
     }
 }
@@ -152,7 +152,7 @@ static void onRequest(void)
         Wire.write(state);
     }
     else {
-      sendDiagnostics();
+        sendDiagnostics();
     }
 }
 #endif
@@ -169,117 +169,117 @@ void servo_stop()
 
 void eeprom_load_settings()
 {
-  uint8_t csum = 0;
-  for (uint8_t adr = 1; adr < EEPROM_SIZE; ++adr) {
-    csum += EEPROM[adr];
-  }
-  if (csum == EEPROM[EEPROM_ADDR_CHECKSUM]) {
-    my_i2c_address = EEPROM[EEPROM_ADDR_I2C_ADDR];
-    my_homing_adjust = static_cast<int8_t>(EEPROM[EEPROM_ADDR_HOMING_ADJUST]);
-  }
+    uint8_t csum = 0;
+    for (uint8_t adr = 1; adr < EEPROM_SIZE; ++adr) {
+        csum += EEPROM[adr];
+    }
+    if (csum == EEPROM[EEPROM_ADDR_CHECKSUM]) {
+        my_i2c_address = EEPROM[EEPROM_ADDR_I2C_ADDR];
+        my_homing_adjust = static_cast<int8_t>(EEPROM[EEPROM_ADDR_HOMING_ADJUST]);
+    }
 }
 
 void eeprom_save_settings()
 {
-  uint8_t csum = 0;
-  csum += EEPROM[EEPROM_ADDR_I2C_ADDR] = my_i2c_address;
-  csum += EEPROM[EEPROM_ADDR_HOMING_ADJUST] = static_cast<uint8_t>(my_homing_adjust);
-  EEPROM[EEPROM_ADDR_CHECKSUM] = csum;
-  EEPROM.commit();
+    uint8_t csum = 0;
+    csum += EEPROM[EEPROM_ADDR_I2C_ADDR] = my_i2c_address;
+    csum += EEPROM[EEPROM_ADDR_HOMING_ADJUST] = static_cast<uint8_t>(my_homing_adjust);
+    EEPROM[EEPROM_ADDR_CHECKSUM] = csum;
+    EEPROM.commit();
 }
 
 void setup()
 {
-  my_i2c_address = SLAVE_ADDR;
-  my_homing_adjust = HOMING_ADJUST;
-  EEPROM.begin();
-  eeprom_load_settings();  
+    my_i2c_address = SLAVE_ADDR;
+    my_homing_adjust = HOMING_ADJUST;
+    EEPROM.begin();
+    eeprom_load_settings();  
 
 #ifdef UART_MODULE_ENABLED  
-  Serial.begin(115200);
+    Serial.begin(115200);
 #endif  
-  delay(3000);
+    delay(3000);
 #ifdef UART_MODULE_ENABLED  
-  Serial.println("hello.jpg");
+    Serial.println("hello.jpg");
 #endif  
 
 #ifdef I2C_MODULE_ENABLED
-  Wire.begin(my_i2c_address);
-  Wire.onReceive(onReceive);
-  Wire.onRequest(onRequest);
+    Wire.begin(my_i2c_address);
+    Wire.onReceive(onReceive);
+    Wire.onRequest(onRequest);
 #endif
 
-  pinMode(PD3, INPUT_PULLUP);
+    pinMode(PD3, INPUT_PULLUP);
 
-  pinMode(SERVO_PIN, OUTPUT);
-  analogWriteFrequency(50);
-  analogWriteResolution(16);
-  analogWrite(SERVO_PIN, SERVO_SPEED_1);  
-  prev_millis = start_time = millis();
+    pinMode(SERVO_PIN, OUTPUT);
+    analogWriteFrequency(50);
+    analogWriteResolution(16);
+    analogWrite(SERVO_PIN, SERVO_SPEED_1);  
+    prev_millis = start_time = millis();
 
-  state = ST_HOMING1;
-  homing_skips = 20;
+    state = ST_HOMING1;
+    homing_skips = 20;
 
-  i2c_acknowledge = 0;
-  i2c_command = -1;
+    i2c_acknowledge = 0;
+    i2c_command = -1;
 }
 
 track_sensor_result_t track_sensor(int16_t x)
 {
-  track_sensor_result_t result = TS_IDLE;
+    track_sensor_result_t result = TS_IDLE;
 
-  if (x > tracking_max) 
-    tracking_max = x;
-  else 
-    tracking_max -= (tracking_max - x) / tracking_div;
+    if (x > tracking_max) 
+        tracking_max = x;
+    else 
+        tracking_max -= (tracking_max - x) / tracking_div;
 
-  if (x < tracking_min)
-    tracking_min = x;
-  else
-    tracking_min += (x - tracking_min) / tracking_div;
+    if (x < tracking_min)
+        tracking_min = x;
+    else
+        tracking_min += (x - tracking_min) / tracking_div;
 
 #ifdef UART_MODULE_ENABLED
-  Serial.print(tracking_min); Serial.print(' '); Serial.print(tracking_max); Serial.print(' ');
+    Serial.print(tracking_min); Serial.print(' '); Serial.print(tracking_max); Serial.print(' ');
 #endif
 
-  // set hysteresis threshold
-  int16_t median = (tracking_min + tracking_max) / 2;
-  int16_t thresh_low = median - 40;
-  int16_t thresh_high = median + 40;
+    // set hysteresis threshold
+    int16_t median = (tracking_min + tracking_max) / 2;
+    int16_t thresh_low = median - 40;
+    int16_t thresh_high = median + 40;
 
-  int16_t prev_tracking_out = tracking_out;
-  if (tracking_out == 0 && x > thresh_high) {
-      tracking_out = 1;
-  }
-  else if (tracking_out != 0 && x < thresh_low) {
-      tracking_out = 0;
-  }
+    int16_t prev_tracking_out = tracking_out;
+    if (tracking_out == 0 && x > thresh_high) {
+        tracking_out = 1;
+    }
+    else if (tracking_out != 0 && x < thresh_low) {
+        tracking_out = 0;
+    }
 
-  if (prev_tracking_out != INVERT && tracking_out == INVERT) {
-      pulse_time = 0;
-  }
-  else if (tracking_out == INVERT) {
-      pulse_time += 1;
-  }
-  else if (prev_tracking_out == INVERT && tracking_out != INVERT) {
-      avg_pulse_time = (3 * avg_pulse_time + pulse_time) / 4;
-      if (INVERT == 0) {
-        int thresh = avg_pulse_time * 13 / 8; //7 / 4; //5 / 3;
-        result = TS_PULSE;
-        if (pulse_time > thresh) {
-          result = TS_MARKER;
+    if (prev_tracking_out != INVERT && tracking_out == INVERT) {
+        pulse_time = 0;
+    }
+    else if (tracking_out == INVERT) {
+        pulse_time += 1;
+    }
+    else if (prev_tracking_out == INVERT && tracking_out != INVERT) {
+        avg_pulse_time = (3 * avg_pulse_time + pulse_time) / 4;
+        if (INVERT == 0) {
+            int thresh = avg_pulse_time * 13 / 8; //7 / 4; //5 / 3;
+            result = TS_PULSE;
+            if (pulse_time > thresh) {
+                result = TS_MARKER;
+            }
         }
-      }
-      else {
-        int thresh = avg_pulse_time / 2;
-        result = TS_PULSE;
-        if (pulse_time <= thresh) {
-          result = TS_MARKER;
+        else {
+            int thresh = avg_pulse_time / 2;
+            result = TS_PULSE;
+            if (pulse_time <= thresh) {
+                result = TS_MARKER;
+            }
         }
-      }
-  }
+    }
 
-  return result;
+    return result;
 }
 
 #ifdef I2C_MODULE_ENABLED
@@ -322,91 +322,91 @@ void sendDiagnostics()
 #endif
 
 void loop() {
-  long now = millis();
-  if (1 || now - prev_millis > STEP_MILLIS) {
-    int c;
+    long now = millis();
+    if (1 || now - prev_millis > STEP_MILLIS) {
+        int c;
 #ifdef UART_MODULE_ENABLED
-    c = Serial.read();
+        c = Serial.read();
 #endif
 #ifdef I2C_MODULE_ENABLED
-    c = i2c_command;
-    i2c_command = -1;
+        c = i2c_command;
+        i2c_command = -1;
 #endif
-    if (c == 'h') {
-      state = ST_HOMING1;
-      homing_skips = 20;
-      servo_start();
-    }
-    else if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
-      int pos = -1;
+        if (c == 'h') {
+            state = ST_HOMING1;
+            homing_skips = 20;
+            servo_start();
+        }
+        else if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+            int pos = -1;
 
-      if (c >= 'A' && c <= 'Z') {
-        pos = c - 'A' + 1;
-      }
-      else if (c >= '0' && c <= '9') {
-        pos = 27 + (c - '0');
-      }
-      else if (c == '-') {
-        pos = 37;
-      }
+            if (c >= 'A' && c <= 'Z') {
+                pos = c - 'A' + 1;
+            }
+            else if (c >= '0' && c <= '9') {
+                pos = 27 + (c - '0');
+            }
+            else if (c == '-') {
+                pos = 37;
+            }
 
-      state = ST_SEEK;
-      servo_start();      
-      seek_pos = pos;
-    }
+            state = ST_SEEK;
+            servo_start();      
+            seek_pos = pos;
+        }
 
-    prev_millis = now;
-    int sensorValue1 = analogRead(A2);
-    track_sensor_result_t ts = track_sensor(sensorValue1);    
+        prev_millis = now;
+        int sensorValue1 = analogRead(A2);
+        track_sensor_result_t ts = track_sensor(sensorValue1);    
 #ifdef UART_MODULE_ENABLED
-    Serial.print(sensorValue1); Serial.print(' '); Serial.print(ts * 100); Serial.print(' '); Serial.println(current_pos);
+        Serial.print(sensorValue1); Serial.print(' '); Serial.print(ts * 100); Serial.print(' '); Serial.println(current_pos);
 #endif
 #ifdef I2C_MODULE_ENABLED
-    updateDiagnostics(sensorValue1, ts);
+        updateDiagnostics(sensorValue1, ts);
 #endif
 
-    switch (ts) {
-      case TS_MARKER:
-        if (state == ST_HOMING2) {
-          current_pos = my_homing_adjust + 38;
-          seek_pos = 0;
-          state = ST_SEEK;
+        switch (ts) {
+            case TS_MARKER:
+                if (state == ST_HOMING2) {
+                    current_pos = my_homing_adjust + 38;
+                    seek_pos = 0;
+                    state = ST_SEEK;
+                }
+                else {
+                    current_pos = (current_pos + 1) % 38;
+                }
+
+                //if (state == ST_HOMING3) {
+                //  seek_pos = 0;
+                //  state = ST_SEEK;
+                //}
+                //else
+                if (state == ST_SEEK && seek_pos == current_pos) {
+                    servo_stop();
+                    state = ST_PAUSE_RESTART;
+                    start_time = now;
+                }
+                break;
+            case TS_PULSE:
+                current_pos = (current_pos + 1) % 38;
+                if (state == ST_HOMING1) {
+                    if (homing_skips > 0) {
+                        if (--homing_skips == 0) state = ST_HOMING2;
+                    }
+                }
+                if (state == ST_SEEK) {
+                    if (current_pos == seek_pos) {
+                        servo_stop();
+                        //state = ST_IDLE;
+                        state = ST_PAUSE_RESTART;
+                        start_time = now;
+                    }
+                }
+                break;
+            case TS_IDLE:
+            default:
+                break;
         }
-        else {
-          current_pos = (current_pos + 1) % 38;
-        }
-        
-        //if (state == ST_HOMING3) {
-        //  seek_pos = 0;
-        //  state = ST_SEEK;
-        //}
-        //else
-        if (state == ST_SEEK && seek_pos == current_pos) {
-            servo_stop();
-            state = ST_PAUSE_RESTART;
-            start_time = now;
-        }
-        break;
-      case TS_PULSE:
-        current_pos = (current_pos + 1) % 38;
-        if (state == ST_HOMING1) {
-          if (homing_skips > 0) {
-            if (--homing_skips == 0) state = ST_HOMING2;
-          }
-        }
-        if (state == ST_SEEK) {
-          if (current_pos == seek_pos) {
-            servo_stop();
-            //state = ST_IDLE;
-            state = ST_PAUSE_RESTART;
-            start_time = now;
-          }
-        }
-        break;
-      case TS_IDLE:
-      default:
-        break;
     }
-  }
 }
 /* vim: set filetype=cpp: */
