@@ -18,6 +18,8 @@ The compact and cheap requirement limits the choice of motors to MG90S, or even 
 
 ## Design
 
+See [printables](printables) and [CAD](printables/cad) for source files and detailed breakdown of every part.
+
 The pictures tell everything. The motor is hidden inside the stator drum. Flappy drum sits on the stator driven by a little cog.
 ![split-flap](doc/sf1.jpg)
 
