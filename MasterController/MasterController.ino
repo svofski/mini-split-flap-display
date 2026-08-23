@@ -13,10 +13,12 @@ uint8_t n_splitflaps = 0;
 
 // Console commands: 
 
-// " TEXT
+// p TEXT
 
-//   ",HELLO        type HELLO from current position
-//   ",\014SPLIT\r"	re-home all positions and display HELLO, then set cursor position to 0
+//   p,HELLO        type HELLO from current position
+//   p \014SPLIT\r	re-home all positions and display HELLO, then set cursor position to 0
+
+// t same as TEXT but with power budget sequencing
 
 // a addr          assign address (only valid when there is a single display connected)
 //   a 0x11	set display i2c address = 0x11
@@ -38,7 +40,6 @@ void printhex(uint8_t val)
 {
     if (val < 16) Serial.print('0');
     Serial.print(val, 16);
-
 }
 
 void hexdump(const uint8_t * buf, uint8_t len)
@@ -49,7 +50,8 @@ void hexdump(const uint8_t * buf, uint8_t len)
     }
 }
 
-int8_t check_display(uint8_t addr)
+// return state or -1 if error
+int8_t check_display(uint8_t addr, bool verbose=true, bool save=false)
 {
     Wire.beginTransmission(addr);
     Wire.write('q');
@@ -62,7 +64,7 @@ int8_t check_display(uint8_t addr)
         response_buf[i++] = Wire.read();
     }
 
-    hexdump(response_buf, i);
+    if (verbose) hexdump(response_buf, i);
 
     if (i < 7) {
         return -1;
@@ -72,19 +74,25 @@ int8_t check_display(uint8_t addr)
         int8_t zero = static_cast<int8_t>(response_buf[4]);
         uint8_t pos = response_buf[5];
         uint8_t state = response_buf[6];
-        Serial.print(F("SFD 0x")); Serial.print(addr, 16); 
-        if (zero >= 0) Serial.print('+'); 
-        Serial.print(zero, 10); Serial.print('@'); Serial.print(pos);
-        Serial.print('s'); Serial.print(state);
+        if (verbose) {
+            Serial.print(F("SFD 0x")); Serial.print(addr, 16); 
+            if (zero >= 0) Serial.print('+'); 
+            Serial.print(zero, 10); Serial.print('@'); Serial.print(pos);
+            Serial.print('s'); Serial.print(state);
+        }
 
-        for (auto i = 0; i < MAX_SPLIT_FLAPS; ++i) {
-            if (splitflaps[i] == addr) break;
-            if (splitflaps[i] == 0) {
-                splitflaps[i] = addr;
+        if (save) {
+            if (n_splitflaps >= MAX_SPLIT_FLAPS) {
+                return -1;
+            }
+            else {
+                splitflaps[n_splitflaps] = addr;
+                ++n_splitflaps;
             }
         }
 
-        return 0;
+        return state;
+
     }
 
     return -1;
@@ -105,17 +113,10 @@ void scan_i2c()
         byte error = Wire.endTransmission();
 
         if (error == 0) {
-            Serial.print(F("I2C device found at address 0x"));
-            if (address < 16) {
-                Serial.print('0');
-            }
-            Serial.print(address, HEX);
+            Serial.print(F("I2C device found at address 0x")); printhex(address);
             Serial.print(F(": "));
 
-            if (check_display(address) == 0) {
-                n_splitflaps++;
-            }
-            else {
+            if (check_display(address, true, true) < 0) {
                 Serial.print(F(" ERROR"));
             }
 
@@ -152,9 +153,111 @@ void sendNak()
     Serial.println(F("ERROR"));
 }
 
+void send_to_display(uint8_t addr, char ch)
+{
+    Wire.beginTransmission(addr);
+    Wire.write(ch);
+    Wire.endTransmission();
+}
+
+void cmdSingleChar()
+{
+    const char *arg = cmd.next();
+    uint8_t addr = 255;
+
+    errno = 0;
+    int valor = strtol(arg, nullptr, 0);
+    if (errno == 0 && valor > 0 && valor < 128) {
+        addr = valor;
+    }
+    if (addr == 255) return;
+
+    arg = cmd.next();
+    if (arg == nullptr) return;
+
+    send_to_display(addr, *arg);    
+}
+
+void print_text(const char *arg, bool wait = false)
+{
+    uint8_t len = max(strlen(arg), n_splitflaps);
+    for (uint8_t i = 0; i < len; ++i) {
+        // TODO: power budget
+        uint8_t c = arg[i];
+        Serial.print("i="); Serial.print(i); Serial.print(" c="); Serial.print(c); Serial.print(" ");
+        Serial.print(" to="); Serial.print(splitflaps[i], HEX); Serial.print(" ");
+        switch (c) {
+            case 'A'...'Z':
+            case '0'...'9':
+            case '-':
+            case ' ':
+            case 'h':
+                send_to_display(splitflaps[i], c);
+                if (wait) {
+                    wait_for_idle(splitflaps[i]);
+                }
+                Serial.println("SENT");
+                break;
+            default:
+                Serial.println("NOT SENT");
+                break;
+        }
+    }
+}
+
 void cmdPrint()
 {
-    sendNak();
+    const char *arg = cmd.next();
+    if (arg == nullptr) {
+        sendNak();
+        return;
+    }
+    print_text(arg, false);
+    sendAck();
+}
+
+void cmdType()
+{
+    const char *arg = cmd.next();
+    if (arg == nullptr) {
+        sendNak();
+        return;
+    }
+    print_text(arg, true);
+    sendAck();    
+}
+
+int8_t wait_for_idle(uint8_t addr)
+{
+    int8_t result;
+    do {
+        result = check_display(addr, false, false);
+    } while (result >= 0 && (result != 6) && (result != 0));
+
+    return result;
+}
+
+void cmdHome()
+{
+    Serial.print(F("Homing: "));
+    for (uint8_t i = 0; i < n_splitflaps; ++i) {
+        printhex(splitflaps[i]);
+        Serial.print('.');
+        if (wait_for_idle(splitflaps[i]) == -1) {
+            sendNak();
+            return;
+        }
+        Serial.print('.');
+        send_to_display(splitflaps[i], 'h');
+        delay(100);
+        if (wait_for_idle(splitflaps[i]) == -1) {
+            sendNak();
+            return;
+        }
+        Serial.print('.');
+    }
+    Serial.println();
+    sendAck();
 }
 
 void cmdAssignAddress()
@@ -243,11 +346,14 @@ void setup() {
     Wire.begin();
     Serial.begin(115200);
 
-    cmd.addCommand("\"", cmdPrint); // print text on split-flaps
+    cmd.addCommand("p", cmdPrint); // print text on split-flaps
+    cmd.addCommand("t", cmdType); // print text on split-flaps
     cmd.addCommand("a", cmdAssignAddress); // assign address X to the only split-flap display on the bus
     cmd.addCommand("z", cmdSetHomingOffset); // set homing offset to split-flap display N = X
     cmd.addCommand("v", cmdVersion); // print version string
     cmd.addCommand("s", cmdStatus); // print status of every connected display
+    cmd.addCommand("1", cmdSingleChar); // send char to address, e.g. "1 0x10 A" 
+    cmd.addCommand("h", cmdHome); // home all displays
 
     prev_millis = millis();
 
@@ -256,6 +362,40 @@ void setup() {
     cmdStatus();
 }
 
+enum track_sensor_result_t { TS_IDLE, TS_PULSE, TS_MARKER };
+struct diags_buf_t {
+    uint8_t first;
+    int16_t tracking_min, tracking_max;
+    int16_t sensor_value;
+    uint8_t ts;
+    int8_t current_pos;
+    uint8_t last;
+} __attribute__((packed));
+
+void getDiags(uint8_t addr)
+{
+    Wire.requestFrom((int)addr, sizeof(diags_buf_t));
+
+    uint8_t i = 0;
+    while (Wire.available() && i < sizeof(response_buf)) {
+        response_buf[i++] = Wire.read();
+    }
+    while(Wire.available()) (void)Wire.read();
+
+    diags_buf_t * diags = reinterpret_cast<diags_buf_t *>(&response_buf[0]);
+    Serial.print(diags->tracking_min); Serial.print(' ');
+    Serial.print(diags->tracking_max); Serial.print(' ');
+    Serial.print(diags->sensor_value); Serial.print(' ');
+    Serial.print(diags->ts); Serial.print(' ');
+    Serial.print(diags->current_pos); 
+    //Serial.print(':'); hexdump(response_buf, i);
+    Serial.println();
+
+}
+
 void loop() {
     cmd.readSerial();
+    //getDiags(0x11);
 }
+
+/* vim: set filetype=cpp: */

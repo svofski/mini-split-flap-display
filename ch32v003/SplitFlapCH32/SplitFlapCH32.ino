@@ -61,7 +61,7 @@ int16_t pulse_time = 0;
 int16_t avg_pulse_time = 0;
 
 constexpr int STEP_MILLIS = 1;
-constexpr int tracking_div = 92;
+constexpr int tracking_div = 64; //92 good for 0x11, 24 for 0x10 -- but 0x11 is not reliably switching single chars
 constexpr int INVERT = 1;
 
 int8_t homing_skips = 0;
@@ -76,7 +76,7 @@ track_sensor_result_t track_sensor(int16_t x);
 void eeprom_load_settings();
 void eeprom_save_settings();
 
-constexpr int SERVO_SPEED_1 = (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2 + 400;//1 * 180;
+constexpr int SERVO_SPEED_1 = (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2 + 1000;// 500 is last known good
 
 long start_time, prev_millis;
 
@@ -127,6 +127,11 @@ static void onReceive(int num_bytes)
     while(Wire.available()) {
         i2c_command = (uint8_t)Wire.read();
         switch (i2c_command) {
+            case 'A'...'Z':
+            case '0'...'9':
+            case '-':
+            case ' ':
+                break;
             case 'q':
                 i2c_acknowledge = 1;
                 while (Wire.available()) Wire.read();
@@ -164,7 +169,13 @@ void servo_start()
 
 void servo_stop()
 {
+    int8_t saved_pos = current_pos;
+    // stopping reverse, doesn't really work 
+    //analogWrite(SERVO_PIN, (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2 - 200); 
+    //delay(50);
     analogWrite(SERVO_PIN, (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2); 
+    delay(50);
+    current_pos = saved_pos;
 }
 
 void eeprom_load_settings()
@@ -214,10 +225,10 @@ void setup()
     pinMode(SERVO_PIN, OUTPUT);
     analogWriteFrequency(50);
     analogWriteResolution(16);
-    analogWrite(SERVO_PIN, SERVO_SPEED_1);  
+    servo_stop();
     prev_millis = start_time = millis();
 
-    state = ST_HOMING1;
+    state = ST_PAUSE_RESTART;
     homing_skips = 20;
 
     i2c_acknowledge = 0;
@@ -244,8 +255,8 @@ track_sensor_result_t track_sensor(int16_t x)
 
     // set hysteresis threshold
     int16_t median = (tracking_min + tracking_max) / 2;
-    int16_t thresh_low = median - 40;
-    int16_t thresh_high = median + 40;
+    int16_t thresh_low = median - 20;
+    int16_t thresh_high = median + 20;
 
     int16_t prev_tracking_out = tracking_out;
     if (tracking_out == 0 && x > thresh_high) {
@@ -271,7 +282,7 @@ track_sensor_result_t track_sensor(int16_t x)
             }
         }
         else {
-            int thresh = avg_pulse_time / 2;
+            int thresh = avg_pulse_time * 2 / 3;
             result = TS_PULSE;
             if (pulse_time <= thresh) {
                 result = TS_MARKER;
@@ -292,7 +303,6 @@ struct diags_buf_t {
 
 static diags_buf_t diags[2];
 uint8_t diags_wr_index = 0;
-uint8_t diags_rd_index = 1;
 
 void updateDiagnostics(int16_t sensor_value, track_sensor_result_t ts)
 {
@@ -305,19 +315,22 @@ void updateDiagnostics(int16_t sensor_value, track_sensor_result_t ts)
 
 void wire_write_i16(int16_t value)
 {
-    Wire.write((value >> 8) & 0xff);
-    Wire.write(value & 0xff);
+    Wire.write((uint8_t) (value & 0xff));
+    Wire.write((uint8_t) ((value >> 8) & 0xff));
 }
 
 void sendDiagnostics()
 {
-    wire_write_i16(diags[diags_rd_index].tracking_min);
-    wire_write_i16(diags[diags_rd_index].tracking_max);
-    wire_write_i16(diags[diags_rd_index].sensor_value);
-    Wire.write(diags[diags_rd_index].ts);
-    Wire.write(diags[diags_rd_index].current_pos);
-    diags_wr_index ^= 1;
-    diags_rd_index ^= 1;
+    //uint8_t rdidx = diags_wr_index ^ 1;
+    uint8_t rdidx = 0;
+    Wire.write(0xde | rdidx); 
+    wire_write_i16(diags[rdidx].tracking_min);
+    wire_write_i16(diags[rdidx].tracking_max);
+    wire_write_i16(diags[rdidx].sensor_value);
+    Wire.write((uint8_t)diags[rdidx].ts);
+    Wire.write((int8_t)diags[rdidx].current_pos);
+    Wire.write(0xad | rdidx);
+    //diags_wr_index = rdidx;
 }
 #endif
 
@@ -357,7 +370,10 @@ void loop() {
 
         prev_millis = now;
         int sensorValue1 = analogRead(A2);
-        track_sensor_result_t ts = track_sensor(sensorValue1);    
+        track_sensor_result_t ts = TS_IDLE;
+        if (state != ST_PAUSE_RESTART) {
+            ts = track_sensor(sensorValue1);    
+        }
 #ifdef UART_MODULE_ENABLED
         Serial.print(sensorValue1); Serial.print(' '); Serial.print(ts * 100); Serial.print(' '); Serial.println(current_pos);
 #endif

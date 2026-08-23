@@ -34,8 +34,8 @@ Split-Flap module:
 
 QRE1113 OUT -> CH32 PC4
 MG90S PWM   -> CH32 PD3
-I2C SDA	    -> CH32 PC1         -> Arduino Nano A4         -> 4K7 pullup to +5V
-I2C SCL     -> CH32 PC2         -> Arduino Nano A5         -> 4K7 pullup to +5V
+I2C SDA	    -> CH32 PC1         -> Arduino Nano A4         -> 4K7 pullup to +5V      GREEN
+I2C SCL     -> CH32 PC2         -> Arduino Nano A5         -> 4K7 pullup to +5V      ORANGE
 
 
 
