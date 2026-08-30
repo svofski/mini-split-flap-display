@@ -71,22 +71,25 @@ Master controller (usb serial)
 
 Console commands: 
 
-" TEXT
+s               scan the bus, update internal structures and and print info about each display
 
-  "HELLO        type HELLO from current position
-  "\014SPLIT\r"	re-home all positions and display HELLO, then set cursor position to 0
-              
-a addr          assign address (only valid when there is a single display connected)
+p TEXT          type text on all units without power budgeting. guarranteed to fail if there are more than 2 units.
+
+h               home all units with power budgeting
+
+t TEXT          type text with power budgeting. text comprises [A-Z0-9\-] to display space use lowercase "h" (home), underscore to skip position
+
+  t HELLO        type HELLO from current position  
+  t _____X       update character in position 6 to X
+  t h______      home display in position 1
+
+Se              
+a addr          assign address. Only valid when there is a single display connected. Necessary when configuring a new module.
   a 0x11	set display i2c address = 0x11
 
 z addr offset   set homing offset
   z 0x11 -3     display at 0x11 homes to position -3
 
-Text special chars
-
-12 0xc 014	FF	re-home all positions
-10 0xa 012	LF      clear line (wind up to space without homing)
-13 0xd 015      CR      set position to 0
-8  0x8 010      BS      backspace
-[A-Z,0-9,\- ]           display char, advance cursor position
+d addr value    set envelope tracking divider (larger value means slower decay)
+  d 0x11 110    set device 0x11 to track slower
 
