@@ -20,14 +20,16 @@
 #ifdef I2C_MODULE_ENABLED
 #warning BUILDING I2C VERSION
 #include <Wire.h>
-#define SLAVE_ADDR 0x10
+#define DEFAULT_SLAVE_ADDR 0x10
 #endif
+#define DEFAULT_TRACKING_DIV 92  // 64 for faster reaction times
+#define DEFAULT_HOMING_ADJUST (-2)
 
 #define EEPROM_ADDR_CHECKSUM      0
 #define EEPROM_ADDR_I2C_ADDR      1
 #define EEPROM_ADDR_HOMING_ADJUST 2
-#define EEPROM_SIZE               3
-
+#define EEPROM_ADDR_TRACKING_DIV  3
+#define EEPROM_SIZE               4
 
 #ifdef UART_MODULE_ENABLED
 #warning BUILDING SERIAL VERSION
@@ -45,8 +47,6 @@ enum state_t {
 
 enum track_sensor_result_t { TS_IDLE, TS_PULSE, TS_MARKER };
 
-constexpr int8_t HOMING_ADJUST = -2; //-2;
-
 constexpr int SERVO_PIN = PD3;
 constexpr int SPEED_STOP = 180/2 - 2;
 
@@ -61,7 +61,6 @@ int16_t pulse_time = 0;
 int16_t avg_pulse_time = 0;
 
 constexpr int STEP_MILLIS = 1;
-constexpr int tracking_div = 64; //92 good for 0x11, 24 for 0x10 -- but 0x11 is not reliably switching single chars
 constexpr int INVERT = 1;
 
 int8_t homing_skips = 0;
@@ -69,8 +68,9 @@ int8_t current_pos = 0;
 int8_t seek_pos = 0;
 state_t state = ST_IDLE;
 
-uint8_t my_i2c_address = SLAVE_ADDR;
-int8_t  my_homing_adjust = HOMING_ADJUST;
+uint8_t my_i2c_address = DEFAULT_SLAVE_ADDR;
+int8_t  my_homing_adjust = DEFAULT_HOMING_ADJUST;
+uint8_t tracking_div = DEFAULT_TRACKING_DIV; //64; //92 good for 0x11, 24 for 0x10 -- but 0x11 is not reliably switching single chars
 
 track_sensor_result_t track_sensor(int16_t x);
 void eeprom_load_settings();
@@ -121,6 +121,17 @@ static int8_t set_new_adjust()
     return -1;
 }
 
+static int8_t set_new_tracking_div()
+{
+    if (Wire.available()) {
+        tracking_div = static_cast<uint8_t>(Wire.read());
+        eeprom_save_settings();
+        return 0;
+    }
+
+    return -1;
+}
+
 static void onReceive(int num_bytes)
 {
     (void)num_bytes;
@@ -142,6 +153,9 @@ static void onReceive(int num_bytes)
             case 'z': // set homing adjust
                 set_new_adjust();
                 break;
+            case 'd': // set tracking div
+                set_new_tracking_div();
+                break;
         }
     }
 }
@@ -155,6 +169,7 @@ static void onRequest(void)
         Wire.write((uint8_t)my_homing_adjust);
         Wire.write(current_pos);
         Wire.write(state);
+        Wire.write(tracking_div);
     }
     else {
         sendDiagnostics();
@@ -187,6 +202,7 @@ void eeprom_load_settings()
     if (csum == EEPROM[EEPROM_ADDR_CHECKSUM]) {
         my_i2c_address = EEPROM[EEPROM_ADDR_I2C_ADDR];
         my_homing_adjust = static_cast<int8_t>(EEPROM[EEPROM_ADDR_HOMING_ADJUST]);
+        tracking_div = EEPROM[EEPROM_ADDR_TRACKING_DIV];
     }
 }
 
@@ -195,14 +211,16 @@ void eeprom_save_settings()
     uint8_t csum = 0;
     csum += EEPROM[EEPROM_ADDR_I2C_ADDR] = my_i2c_address;
     csum += EEPROM[EEPROM_ADDR_HOMING_ADJUST] = static_cast<uint8_t>(my_homing_adjust);
+    csum += EEPROM[EEPROM_ADDR_TRACKING_DIV] = tracking_div;
     EEPROM[EEPROM_ADDR_CHECKSUM] = csum;
     EEPROM.commit();
 }
 
 void setup()
 {
-    my_i2c_address = SLAVE_ADDR;
-    my_homing_adjust = HOMING_ADJUST;
+    my_i2c_address = DEFAULT_SLAVE_ADDR;
+    my_homing_adjust = DEFAULT_HOMING_ADJUST;
+    tracking_div = DEFAULT_TRACKING_DIV;
     EEPROM.begin();
     eeprom_load_settings();  
 
@@ -392,11 +410,6 @@ void loop() {
                     current_pos = (current_pos + 1) % 38;
                 }
 
-                //if (state == ST_HOMING3) {
-                //  seek_pos = 0;
-                //  state = ST_SEEK;
-                //}
-                //else
                 if (state == ST_SEEK && seek_pos == current_pos) {
                     servo_stop();
                     state = ST_PAUSE_RESTART;

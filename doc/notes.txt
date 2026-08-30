@@ -61,7 +61,8 @@ I2C Commands
 A-Z 0-9 - space	  display character
 h                 home
 q                 respond with "SFD" [addr] [homing offset] [position] [state]
-z [n] [~n]        write new homing offset (modulo 38)
+z [n]             write new homing offset (modulo 38)
+d [n]             write new tracking divider (uint8_t), typically 64..92
 a [addr] [~addr]  write new i2c addr, e.g.  0x61 0x11 0xee set addr = 0x11
 
 

@@ -57,7 +57,7 @@ int8_t check_display(uint8_t addr, bool verbose=true, bool save=false)
     Wire.write('q');
     Wire.endTransmission();
 
-    Wire.requestFrom((int)addr, 7); // expect response S F D aa zz pp ss
+    Wire.requestFrom((int)addr, 8); // expect response S F D aa zz pp ss tt
 
     uint8_t i = 0;
     while (Wire.available() && i < sizeof(response_buf)) {
@@ -66,7 +66,7 @@ int8_t check_display(uint8_t addr, bool verbose=true, bool save=false)
 
     if (verbose) hexdump(response_buf, i);
 
-    if (i < 7) {
+    if (i < 8) {
         return -1;
     }
     if (memcmp_P(response_buf, PSTR("SFD"), 3) == 0) {
@@ -74,11 +74,13 @@ int8_t check_display(uint8_t addr, bool verbose=true, bool save=false)
         int8_t zero = static_cast<int8_t>(response_buf[4]);
         uint8_t pos = response_buf[5];
         uint8_t state = response_buf[6];
+        uint8_t tracking_div = response_buf[7];
         if (verbose) {
             Serial.print(F("SFD 0x")); Serial.print(addr, 16); 
             if (zero >= 0) Serial.print('+'); 
             Serial.print(zero, 10); Serial.print('@'); Serial.print(pos);
             Serial.print('s'); Serial.print(state);
+            Serial.print('/'); Serial.print(tracking_div);
         }
 
         if (save) {
@@ -330,6 +332,47 @@ void cmdSetHomingOffset()
     sendNak();
 }
 
+void cmdSetTrackingDiv()
+{
+    uint8_t addr = 255;
+    uint8_t tracking_div = 0;
+    const char *arg = cmd.next();
+    if (arg != nullptr) {
+        errno = 0;
+        int valor = strtol(arg, nullptr, 0);
+        if (errno == 0 && valor > 0 && valor < 128) {
+            addr = valor;
+        }
+    }
+
+    arg = cmd.next();
+    if (arg != nullptr) {
+        errno = 0;
+        int valor = strtol(arg, nullptr, 0);
+        if (errno == 0 && valor > 0 && valor < 256) {
+            tracking_div = valor;
+        }
+    }
+
+    if (addr == 255 || tracking_div == 0) {
+        sendNak();
+        return;
+    }
+
+    for (uint8_t i = 0; i < n_splitflaps; ++i) {
+        if (splitflaps[i] == addr) {
+            Wire.beginTransmission(addr);
+            Wire.write('d');
+            Wire.write(tracking_div);
+            Wire.endTransmission();
+            sendAck();
+            return;
+        }
+    }
+
+    sendNak();
+}
+
 void cmdVersion()
 {
     Serial.println(F("SFMC 0.1"));
@@ -350,6 +393,7 @@ void setup() {
     cmd.addCommand("t", cmdType); // print text on split-flaps
     cmd.addCommand("a", cmdAssignAddress); // assign address X to the only split-flap display on the bus
     cmd.addCommand("z", cmdSetHomingOffset); // set homing offset to split-flap display N = X
+    cmd.addCommand("d", cmdSetTrackingDiv); // set tracking divider
     cmd.addCommand("v", cmdVersion); // print version string
     cmd.addCommand("s", cmdStatus); // print status of every connected display
     cmd.addCommand("1", cmdSingleChar); // send char to address, e.g. "1 0x10 A" 
@@ -395,7 +439,7 @@ void getDiags(uint8_t addr)
 
 void loop() {
     cmd.readSerial();
-    //getDiags(0x11);
+    //getDiags(0x10);
 }
 
 /* vim: set filetype=cpp: */
