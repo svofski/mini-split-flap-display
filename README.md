@@ -1,5 +1,7 @@
 # Mini Split-Flap Display
 
+Most current notes are in [doc/notes.txt](doc/notes.txt)
+
 ## Design goals
 
  * as compact as reasonably possible
