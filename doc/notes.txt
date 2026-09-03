@@ -47,12 +47,11 @@ Each split-flap display has its own address assigned at build/flashing time. Lef
 EEPROM
 ~~~~~~
 
-There are two important parameters that I'd like to be reconfigurable:
+Reconfigurable parameters:
 
-  - zero mark offset, which is hard to get exactly the same for every flap wheel
-  - i2c address which must be unique for every position
-
-EEPROM Library for Arduino CH32 supports CH32V003, perhaps it can be a part of initial setup rather than flashing.
+  - i2c address which must be unique for every display
+  - zero mark offset (-4..-2 typically)
+  - tracking divider, how fast min/max tracking decays
 
 
 I2C Commands
@@ -60,9 +59,9 @@ I2C Commands
 
 A-Z 0-9 - space	  display character
 h                 home
-q                 respond with "SFD" [addr] [homing offset] [position] [state]
-z [n]             write new homing offset (modulo 38)
-d [n]             write new tracking divider (uint8_t), typically 64..92
+q                 respond with "SFD" [addr] [homing offset] [position] [state] [tracking div]
+z [n]             write new homing adjust, signed int8_t
+d [n]             write new tracking divider (uint8_t), typically 64..110
 a [addr] [~addr]  write new i2c addr, e.g.  0x61 0x11 0xee set addr = 0x11
 
 

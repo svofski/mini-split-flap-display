@@ -11,6 +11,9 @@ unsigned long prev_millis;
 uint8_t splitflaps[MAX_SPLIT_FLAPS] {};
 uint8_t n_splitflaps = 0;
 
+uint8_t budget_homing = 3;
+uint8_t budget_typing = 1;
+
 // Console commands: 
 
 // p TEXT
@@ -100,6 +103,35 @@ int8_t check_display(uint8_t addr, bool verbose=true, bool save=false)
     return -1;
 }
 
+int8_t wait_for_idle(uint8_t addr)
+{
+    int8_t result;
+    do {
+        result = check_display(addr, false, false);
+    } while (result >= 0 && (result != 6) && (result != 0));
+
+    return result;
+}
+
+int8_t count_busy_units()
+{
+    int8_t count = 0;
+    for (uint8_t i = 0; i < n_splitflaps; ++i) {
+        if (check_display(splitflaps[i], false, false) != 6) ++count;
+    }
+
+    return count;
+}
+
+void wait_budget(uint8_t budget)
+{
+    uint8_t n_busy;
+    do {
+        n_busy = count_busy_units();
+        Serial.print("n_busy="); Serial.println(n_busy);
+    } while (n_busy >= budget);
+}
+
 void scan_i2c()
 {
     memset(splitflaps, 0, sizeof(splitflaps));
@@ -182,29 +214,43 @@ void cmdSingleChar()
 
 void print_text(const char *arg, bool wait = false)
 {
-    uint8_t len = max(strlen(arg), n_splitflaps);
-    for (uint8_t i = 0; i < len; ++i) {
-        // TODO: power budget
-        uint8_t c = arg[i];
-        Serial.print("i="); Serial.print(i); Serial.print(" c="); Serial.print(c); Serial.print(" ");
-        Serial.print(" to="); Serial.print(splitflaps[i], HEX); Serial.print(" ");
-        switch (c) {
-            case 'A'...'Z':
-            case '0'...'9':
-            case '-':
-            case ' ':
-            case 'h':
-                send_to_display(splitflaps[i], c);
-                if (wait) {
-                    wait_for_idle(splitflaps[i]);
-                }
-                Serial.println("SENT");
-                break;
-            default:
-                Serial.println("NOT SENT");
-                break;
+    uint8_t len = min(strlen(arg), n_splitflaps);
+
+    char msg[MAX_SPLIT_FLAPS];
+    memcpy(&msg[0], arg, len);
+
+    int8_t remains = (int8_t)len;
+
+    do {
+        for (uint8_t i = 0; i < len; ++i) {
+            // TODO: power budget
+            uint8_t c = msg[i];
+            if (c == 0)
+                continue;
+
+            wait_budget(budget_typing);
+            //Serial.print("i="); Serial.print(i); Serial.print(" c="); Serial.print(c); Serial.print(" ");
+            //Serial.print(" to="); Serial.print(splitflaps[i], HEX); Serial.print(" ");
+            switch (c) {
+                case 'A'...'Z':
+                case '0'...'9':
+                case '-':
+                case ' ':
+                case 'h':
+                    send_to_display(splitflaps[i], c);
+                    //if (wait) {
+                    //    wait_for_idle(splitflaps[i]);
+                    //}
+                    //Serial.println("SENT");
+                    break;
+                default:
+                    //Serial.println("NOT SENT");
+                    break;
+            }
+            msg[i] = 0;
+            --remains;
         }
-    }
+    } while (remains > 0);
 }
 
 void cmdPrint()
@@ -229,35 +275,29 @@ void cmdType()
     sendAck();    
 }
 
-int8_t wait_for_idle(uint8_t addr)
-{
-    int8_t result;
-    do {
-        result = check_display(addr, false, false);
-    } while (result >= 0 && (result != 6) && (result != 0));
-
-    return result;
-}
-
 void cmdHome()
 {
     Serial.print(F("Homing: "));
-    for (uint8_t i = 0; i < n_splitflaps; ++i) {
-        printhex(splitflaps[i]);
-        Serial.print('.');
-        if (wait_for_idle(splitflaps[i]) == -1) {
-            sendNak();
-            return;
+
+    static uint8_t homed[MAX_SPLIT_FLAPS];
+    for (uint8_t i = 0; i < n_splitflaps; ++i) homed[i] = 0;
+
+    uint8_t n;
+    uint8_t n_homed;
+    do {
+        for (n = 0, n_homed = 0; n < n_splitflaps; ++n) {
+            if (homed[n] == 0) {
+                wait_budget(budget_homing);
+                printhex(splitflaps[n]); Serial.print('.');
+                send_to_display(splitflaps[n], 'h');
+                homed[n] = 1;
+                delay(100);
+            }
+            else {
+                ++n_homed;
+            }
         }
-        Serial.print('.');
-        send_to_display(splitflaps[i], 'h');
-        delay(100);
-        if (wait_for_idle(splitflaps[i]) == -1) {
-            sendNak();
-            return;
-        }
-        Serial.print('.');
-    }
+    } while (n_homed < n_splitflaps);
     Serial.println();
     sendAck();
 }
