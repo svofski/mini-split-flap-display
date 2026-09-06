@@ -24,12 +24,14 @@
 #endif
 #define DEFAULT_TRACKING_DIV 92  // 64 for faster reaction times
 #define DEFAULT_HOMING_ADJUST (-2)
+#define DEFAULT_SPEED_ADJUST_8 (0)
 
 #define EEPROM_ADDR_CHECKSUM      0
 #define EEPROM_ADDR_I2C_ADDR      1
 #define EEPROM_ADDR_HOMING_ADJUST 2
 #define EEPROM_ADDR_TRACKING_DIV  3
-#define EEPROM_SIZE               4
+#define EEPROM_ADDR_SPEED_ADJUST  4
+#define EEPROM_SIZE               5
 
 #ifdef UART_MODULE_ENABLED
 #warning BUILDING SERIAL VERSION
@@ -71,12 +73,13 @@ state_t state = ST_IDLE;
 uint8_t my_i2c_address = DEFAULT_SLAVE_ADDR;
 int8_t  my_homing_adjust = DEFAULT_HOMING_ADJUST;
 uint8_t tracking_div = DEFAULT_TRACKING_DIV; //64; //92 good for 0x11, 24 for 0x10 -- but 0x11 is not reliably switching single chars
+int8_t speed_adjust_8 = DEFAULT_SPEED_ADJUST_8;
 
 track_sensor_result_t track_sensor(int16_t x);
 void eeprom_load_settings();
 void eeprom_save_settings();
 
-constexpr int SERVO_SPEED_1 = (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2 + 1000;// 500 is last known good
+constexpr int SERVO_SPEED_1 = (SERVO_PULSE_MIN + SERVO_PULSE_MAX) / 2 + 1000;// 1000 is last known good
 
 long start_time, prev_millis;
 
@@ -132,6 +135,17 @@ static int8_t set_new_tracking_div()
     return -1;
 }
 
+static int8_t set_new_speed()
+{
+    if (Wire.available()) {
+        speed_adjust_8 = static_cast<int8_t>(Wire.read());
+        eeprom_save_settings();
+        return 0;
+    }
+
+    return -1;
+}
+
 static void onReceive(int num_bytes)
 {
     (void)num_bytes;
@@ -156,6 +170,9 @@ static void onReceive(int num_bytes)
             case 'd': // set tracking div
                 set_new_tracking_div();
                 break;
+            case 'r': // set speed adjust
+                set_new_speed();
+                break;
         }
     }
 }
@@ -170,6 +187,7 @@ static void onRequest(void)
         Wire.write(current_pos);
         Wire.write(state);
         Wire.write(tracking_div);
+        Wire.write((uint8_t)speed_adjust_8);
     }
     else {
         sendDiagnostics();
@@ -179,7 +197,7 @@ static void onRequest(void)
 
 void servo_start()
 {
-    analogWrite(SERVO_PIN, SERVO_SPEED_1);
+    analogWrite(SERVO_PIN, SERVO_SPEED_1 + speed_adjust_8 * 8);
 }
 
 void servo_stop()
@@ -198,11 +216,12 @@ void eeprom_load_settings()
     uint8_t csum = 0;
     for (uint8_t adr = 1; adr < EEPROM_SIZE; ++adr) {
         csum += EEPROM[adr];
-    }
+    }    
     if (csum == EEPROM[EEPROM_ADDR_CHECKSUM]) {
         my_i2c_address = EEPROM[EEPROM_ADDR_I2C_ADDR];
         my_homing_adjust = static_cast<int8_t>(EEPROM[EEPROM_ADDR_HOMING_ADJUST]);
         tracking_div = EEPROM[EEPROM_ADDR_TRACKING_DIV];
+        speed_adjust_8 = EEPROM[EEPROM_ADDR_SPEED_ADJUST];
     }
 }
 
@@ -212,6 +231,7 @@ void eeprom_save_settings()
     csum += EEPROM[EEPROM_ADDR_I2C_ADDR] = my_i2c_address;
     csum += EEPROM[EEPROM_ADDR_HOMING_ADJUST] = static_cast<uint8_t>(my_homing_adjust);
     csum += EEPROM[EEPROM_ADDR_TRACKING_DIV] = tracking_div;
+    csum += EEPROM[EEPROM_ADDR_SPEED_ADJUST] = speed_adjust_8;
     EEPROM[EEPROM_ADDR_CHECKSUM] = csum;
     EEPROM.commit();
 }
