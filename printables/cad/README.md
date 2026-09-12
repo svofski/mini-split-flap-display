@@ -11,7 +11,17 @@ So far there are just different CAD files. All current models also exist as .ste
 Stator 
 
 ![StatorWithDovetail](doc/drawing-StatorWithDovetail.jpg)
+
+Single-print but needs supports under sensor aperture:
 [stator_with_dovetail3.step](step/stator_with_dovetail3.step)
+
+Wide sensor opening + glue-in aperture, my preferred version. If you have a matte build plate, print matte side towards the sensor (.3mf file assumes matte build plate, buttom looks towards the sensor).
+
+[wheel-exp4-qre1113v3bis.step](step/wheel-exp4-qre1113v3bis.step)
+
+[wheel-exp4-qre1113v3bis-aperture.step](step/wheel-exp4-qre1113v3bis-aperture.step)
+
+Should have made the aperture thicker and more asymmetrical to make the orientation obvious.
 
 Mounting rail
 
@@ -40,6 +50,8 @@ Wheel + MarkersWhite
 [wheel-axle-offset.step](step/wheel-axle-offset.step)
 
 [wheel-axle-markers-offset.step](step/wheel-axle-markers-offset.step)
+
+Note that the wheel + markers in wheel-exp4-qre1113v3.FCStd is lacking the wide marker.
 
 Wheel2 (gear side)
 
