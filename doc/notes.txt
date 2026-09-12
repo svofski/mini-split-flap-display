@@ -61,9 +61,9 @@ A-Z 0-9 - space	  display character
 h                 home
 q                 respond with "SFD" [addr] [homing offset] [position] [state] [tracking div]
 z [n]             write new homing adjust, signed int8_t
+r [n]             write new speed adjust, signed int8_t
 d [n]             write new tracking divider (uint8_t), typically 64..110
 a [addr] [~addr]  write new i2c addr, e.g.  0x61 0x11 0xee set addr = 0x11
-
 
 Master controller (usb serial)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,7 +82,8 @@ t TEXT          type text with power budgeting. text comprises [A-Z0-9\-] to dis
   t _____X       update character in position 6 to X
   t h______      home display in position 1
 
-Se              
+Tuning commands
+
 a addr          assign address. Only valid when there is a single display connected. Necessary when configuring a new module.
   a 0x11	set display i2c address = 0x11
 
@@ -92,3 +93,5 @@ z addr offset   set homing offset
 d addr value    set envelope tracking divider (larger value means slower decay)
   d 0x11 110    set device 0x11 to track slower
 
+r addr value    set speed offset. this value is multiplied by 8 and added to default speed programmed in display unit. the unit is microseconds/8.
+  r 0x11 -10    add -80 to base speed
