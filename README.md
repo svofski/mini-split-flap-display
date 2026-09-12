@@ -1,5 +1,10 @@
 # Mini Split-Flap Display
 
+Video:
+
+![doc/thumb-ok.jpg](doc/thumb-ok.jpg)
+https://www.youtube.com/watch?v=8y3peudQFPg
+
 Most current notes are in [doc/notes.txt](doc/notes.txt)
 
 ## Design goals
